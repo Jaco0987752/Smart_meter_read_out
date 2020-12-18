@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.min.js"></script>
+    <!--//https://www.chartjs.org/docs/latest/-->
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body>
+    <div>
+        <div class="menu">
+            <div class="menuElement">huidig verbruik: <div class="menuElement" id="displayCurrentPower"></div></div>
+            <div class="menuElement"><button onclick="getGraph(-1)">vorige</button></div>
+            <div class="menuElement"><button id="resetView" onclick="getGraph(0)">vandaag</button></div>
+            <div class="menuElement"><button onclick="getGraph(1)">volgende</button></div>
+            <div class="menuElement">
+                <select onchange="getGraph(0,this.selectedIndex)">
+                    <option value="day">dag</option>
+                    <option value="Month">maand</option>
+                </select>
+            </div>
+        </div>
+        <canvas style="margin: 5px;" id="powerUsage"></canvas>
+    </div>
+    <script>
+        // Set a timer which updates the displayCurrentPower element. 
+        setInterval(() => {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("displayCurrentPower").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open("GET", window.location.pathname + "currentPower", true);
+            xhttp.send();
+        }, 2000);
+
+        // init some variables.
+        var graph = null;
+        var TimeOffsetFromToday = 0;
+        var dayOrMonth = 0;
+        getGraph();
+
+        // Load the display the graph. 
+        function getGraph(TimeOffset = undefined, dayOrMonth = undefined) {
+            
+            // Put the correct text on the screen. 
+            if (dayOrMonth !== undefined) {
+                // Show the current day or month after the change from day or month
+                if (this.dayOrMonth !== dayOrMonth) {
+                    this.TimeOffsetFromToday = 0;
+                    if(this.dayOrMonth == "0" ){
+                        var buttonText = document.getElementById("resetView").innerText = "huidige maand";
+                    }else{
+                        var buttonText = document.getElementById("resetView").innerText = "vandaag";
+                    }
+                }
+                this.dayOrMonth = dayOrMonth;
+            }
+
+            if (TimeOffset !== undefined) {
+                // Go to current day when TimeOffset is zero
+                if (TimeOffset == 0) {
+                    this.TimeOffsetFromToday = 0;
+                } 
+                // Add timeOffset to field
+                else {
+                    this.TimeOffsetFromToday += TimeOffset;
+                }
+            }
+            // Prepare url querry 
+            var urlArg = "?";
+            if (this.dayOrMonth === 0) { urlArg += "mode=day"; }
+            else { urlArg += "mode=month"; }
+
+            // Add a offset in day or months.
+            if (this.TimeOffsetFromToday != 0) {
+                urlArg += ("&TimeOffset=" + this.TimeOffsetFromToday);
+            }
+
+            // Load the document. 
+            loadDoc(urlArg);
+        }
+
+        // Load the graph data at the given url.
+        function loadDoc(urlArg) {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    response = JSON.parse(this.responseText);
+                    drawGraph(response.data, response.labels, response.title);
+                    document.getElementById("displayDay").innerHTML = response.day;
+                }
+            };
+            xhttp.open("GET", window.location.pathname + "getData.php" + urlArg, true);
+            xhttp.send();
+        }
+
+        // Draw the graph.
+        function drawGraph(data, labels, title) {
+            var cxt = document.getElementById("powerUsage").getContext('2d');
+
+            // clear graph
+            if (this.graph != null) {
+                this.graph.destroy();
+            }
+
+            // Create a graph object.
+            this.graph = new Chart(cxt, {
+                type: 'bar',
+                data: {
+                    datasets: [{
+                        label: title,
+                        backgroundColor: '#999',
+                        borderColor: '#333',
+                        fill: false,
+                        data: data
+                    }],
+                    labels: labels
+                },
+                options: {
+                    scales: {
+                        yAxes: [{
+                            ticks: {
+                                beginAtZero: true
+                            }
+                        }]
+                    }
+                }
+            }
+            );
+        } 
+    </script>
+</body>
+
+</html>
